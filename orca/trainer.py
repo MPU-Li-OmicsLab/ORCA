@@ -45,7 +45,7 @@ def fit_orca(dataset, cfg, seed: int = 0, device: str = "cuda"):
             m_model = make_nuisance_models(cfg.nuisance, seed + 10 + fold_id, is_treatment=False, is_binary=is_binY, device=device)
             e_model = make_nuisance_models(cfg.nuisance, seed + 20 + fold_id, is_treatment=True,  is_binary=is_binT, device=device)
 
-            # NOTE: skeleton uses res subset to train net; for your final open-source, you can refine.
+            # Train the residual net on the held-out residual subset for this fold.
             m_model.fit(X_fit, Y_fit if not is_binY else Y_fit.astype(int))
             if is_contT:
                 e_model.fit(X_fit, T_fit)

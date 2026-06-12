@@ -111,7 +111,7 @@ class ORCA:
     def fit_onefold(self, X, T, Y, m_model, e_model, seed: int):
         """
         Fit nuisance on full train and train residual net with early stopping on internal val split.
-        For open-source skeleton: keep simple and robust.
+        Reference implementation: keep the public training path simple and robust.
         """
         import numpy as np
         from sklearn.model_selection import train_test_split
@@ -202,7 +202,7 @@ class ORCA:
                     # y in {0,1} (we need original Y, but yb here is residual prob-space)
                     # we reconstruct y from residual + m_hat: y = y_target + m_hat
                     # in practice for binY, it's better to store original y in dataset;
-                    # skeleton: approximate by clamp(y_target + m_hat) -> y01
+                    # Reference path: approximate by clamp(y_target + m_hat) -> y01.
                     y01 = torch.clamp(yb + torch.sigmoid(blb), 0.0, 1.0)
                     loss = F.binary_cross_entropy_with_logits(logits, y01)
 

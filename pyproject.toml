@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "orca-causal"
 version = "0.1.0"
-description = "ORCA: Orthogonal Residual Causal Architecture for treatment-response estimation"
+description = "ORCA: Orthogonal Residual Counterfactual Architecture for treatment-response estimation"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [

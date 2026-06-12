@@ -1,5 +1,5 @@
 ============================================================
-ORCA (Orthogonal Residual Causal Architecture) - USAGE GUIDE
+ORCA (Orthogonal Residual Counterfactual Architecture) - USAGE GUIDE
 ============================================================
 
 0) Quick Start (TL;DR)
@@ -220,10 +220,10 @@ README.md (optional)
 8) Notes for Maintainers (recommended)
 --------------------------------------
 - Keep comments ASCII-only if your cluster has encoding issues.
-- For binary outcome training, the skeleton is intentionally minimal; for the "paper-exact" implementation,
-  you can modify loss to use the original y01 directly (recommended).
-- For cross-fitting, you can refine the procedure to match your paper (e.g., fit nuisance on fold-fit,
-  train residual net on fold-res, then average predictions). The skeleton already supports a simple version.
+- For binary outcome training, the reference implementation keeps the residual-loss path compact; for exact
+  reproduction of a specific paper experiment, verify the binary-outcome loss against the experiment script.
+- For cross-fitting, the package includes a simple K-fold residualization workflow. For strict paper
+  reproduction, match the fold construction and random seeds used in the corresponding experiment script.
 
 
 9) Citation

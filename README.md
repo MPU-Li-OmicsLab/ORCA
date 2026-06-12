@@ -1,4 +1,4 @@
-# ORCA: Orthogonal Residual Causal Architecture
+# ORCA: Orthogonal Residual Counterfactual Architecture
 
 ORCA is a neural counterfactual learning framework for robust individualized
 treatment-response estimation from observational data. It supports binary and
@@ -26,29 +26,29 @@ obtained through additive reconstruction.
 ## Repository Layout
 
 ```text
-orca-causal-github/
-├── orca/                  # Clean reusable ORCA package
-│   ├── config.py
-│   ├── data.py
-│   ├── metrics.py
-│   ├── model.py
-│   ├── nuisance.py
-│   ├── trainer.py
-│   └── utils.py
-├── scripts/
-│   └── run_orca.py         # Simple CLI entry point
-├── experiments/            # Paper reproduction / research scripts
-├── docs/
-│   └── USAGE.md
-├── pyproject.toml
-└── requirements.txt
+ORCA-Neurocomputing/
+|-- orca/                  # Clean reusable ORCA package
+|   |-- config.py
+|   |-- data.py
+|   |-- metrics.py
+|   |-- model.py
+|   |-- nuisance.py
+|   |-- trainer.py
+|   `-- utils.py
+|-- scripts/
+|   `-- run_orca.py         # Simple CLI entry point
+|-- experiments/            # Paper reproduction / research scripts
+|-- docs/
+|   `-- USAGE.md
+|-- pyproject.toml
+`-- requirements.txt
 ```
 
 ## Installation
 
 ```bash
-git clone <your-repo-url>
-cd orca-causal-github
+git clone https://github.com/MPU-Li-OmicsLab/ORCA-Neurocomputing.git
+cd ORCA-Neurocomputing
 python -m venv .venv
 
 # Windows
@@ -112,3 +112,7 @@ See [docs/USAGE.md](docs/USAGE.md) for a more detailed usage guide.
 If you use this repository in academic work, please cite the associated ORCA
 paper once bibliographic information is available.
 
+## License
+
+This project is released under the MIT License. See [LICENSE](LICENSE) for
+details.
