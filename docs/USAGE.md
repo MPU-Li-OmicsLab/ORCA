@@ -122,7 +122,7 @@ Basic run:
     --task binT_contY \
     --data_npz /path/to/data.npz \
     --out_dir ./runs/binT_contY \
-    --device cuda \
+    --device cpu \
     --seed 0 \
     --nuisance rf \
     --tfeat fourier
@@ -133,7 +133,7 @@ Change nuisance model:
 Change treatment feature type:
   --tfeat {direct,fourier,mlp}
 
-Enable cross-fitting (optional):
+Enable experimental cross-fitting:
   --crossfit_folds 2
 
 
@@ -201,7 +201,7 @@ orca/trainer.py
   - fit_orca(): high-level training entry.
   - Handles:
       - creating nuisance models
-      - (optional) cross-fitting
+      - experimental cross-fitting
       - running prediction
       - evaluation if ground truth exists
 

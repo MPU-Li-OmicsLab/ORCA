@@ -10,6 +10,16 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from .utils import set_all_seeds
 
+def _train_val_indices(n: int, seed: int, min_val: int = 16):
+    if n < 2:
+        raise ValueError("Need at least two samples for nuisance training.")
+    idx = np.arange(n)
+    rng = np.random.default_rng(seed)
+    rng.shuffle(idx)
+    n_val = min(max(min_val, int(0.2 * n)), n - 1)
+    return idx[n_val:], idx[:n_val]
+
+
 class TorchMLPRegressor:
     def __init__(self, seed: int, hidden=128, lr=2e-3, wd=1e-5, batch=256, epochs=200, patience=20, device="cpu"):
         self.seed = seed
@@ -29,11 +39,7 @@ class TorchMLPRegressor:
         y = y.astype(np.float32)
 
         n = Xs.shape[0]
-        idx = np.arange(n)
-        rng = np.random.default_rng(self.seed + 77)
-        rng.shuffle(idx)
-        n_val = max(64, int(0.2 * n))
-        va, tr = idx[:n_val], idx[n_val:]
+        tr, va = _train_val_indices(n, self.seed + 77)
 
         Xtr, ytr = Xs[tr], y[tr]
         Xva, yva = Xs[va], y[va]
@@ -109,11 +115,7 @@ class TorchMLPClassifier:
         y = y01.astype(np.float32)
 
         n = Xs.shape[0]
-        idx = np.arange(n)
-        rng = np.random.default_rng(self.seed + 99)
-        rng.shuffle(idx)
-        n_val = max(64, int(0.2 * n))
-        va, tr = idx[:n_val], idx[n_val:]
+        tr, va = _train_val_indices(n, self.seed + 99)
 
         Xtr, ytr = Xs[tr], y[tr]
         Xva, yva = Xs[va], y[va]

@@ -6,7 +6,7 @@ from .nuisance import make_nuisance_models
 from .utils import set_all_seeds
 from .metrics import mise_grid, rmse, sqrt_pehe
 
-def fit_orca(dataset, cfg, seed: int = 0, device: str = "cuda"):
+def fit_orca(dataset, cfg, seed: int = 0, device: str = "cpu"):
     """
     Returns fitted ORCA instance and a metrics dict (if truth available).
     """
@@ -41,11 +41,10 @@ def fit_orca(dataset, cfg, seed: int = 0, device: str = "cuda"):
         preds = []
         for fold_id, (idx_fit, idx_res) in enumerate(kf.split(Xtr)):
             X_fit, T_fit, Y_fit = Xtr[idx_fit], Ttr[idx_fit], Ytr[idx_fit]
-            # fit nuisances on fit, train residual net on res (simple crossfit style)
+            # Fit nuisance models on one fold and train the residual net on the held-out fold.
             m_model = make_nuisance_models(cfg.nuisance, seed + 10 + fold_id, is_treatment=False, is_binary=is_binY, device=device)
             e_model = make_nuisance_models(cfg.nuisance, seed + 20 + fold_id, is_treatment=True,  is_binary=is_binT, device=device)
 
-            # Train the residual net on the held-out residual subset for this fold.
             m_model.fit(X_fit, Y_fit if not is_binY else Y_fit.astype(int))
             if is_contT:
                 e_model.fit(X_fit, T_fit)
@@ -58,7 +57,8 @@ def fit_orca(dataset, cfg, seed: int = 0, device: str = "cuda"):
             model_fold.m_model = m_model
             model_fold.e_model = e_model
             model_fold.fit_onefold(Xtr[idx_res], Ttr[idx_res], Ytr[idx_res],
-                                   m_model=m_model, e_model=e_model, seed=seed + 999 + fold_id)
+                                   m_model=m_model, e_model=e_model,
+                                   seed=seed + 999 + fold_id, fit_nuisance=False)
 
             preds.append(_predict(model_fold, Xte, cfg, t_grid))
 

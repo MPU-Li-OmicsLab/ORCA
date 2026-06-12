@@ -1,9 +1,12 @@
 import argparse
 import json
-import numpy as np
+import sys
+from pathlib import Path
 
-from orca import ORCAConfig, load_npz_dataset, load_csv_dataset, fit_orca
-from orca.utils import ensure_dir
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -13,7 +16,7 @@ def main():
     ap.add_argument("--data_csv", type=str, default=None, help="CSV with feature cols + t,y (and optional split).")
     ap.add_argument("--out_dir", type=str, default="./runs/orca_demo")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--device", type=str, default="cuda")
+    ap.add_argument("--device", type=str, default="cpu", help="Torch device, e.g. cpu, cuda, or cuda:0.")
 
     # quick knobs
     ap.add_argument("--nuisance", type=str, default="rf", choices=["rf","ridge","gbdt","mlp"])
@@ -21,6 +24,11 @@ def main():
     ap.add_argument("--crossfit_folds", type=int, default=1)
 
     args = ap.parse_args()
+
+    import numpy as np
+    from orca import ORCAConfig, load_npz_dataset, load_csv_dataset, fit_orca
+    from orca.utils import ensure_dir
+
     ensure_dir(args.out_dir)
 
     cfg = ORCAConfig(

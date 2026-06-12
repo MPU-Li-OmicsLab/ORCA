@@ -108,10 +108,11 @@ class ORCA:
     def _is_contT(task: str) -> bool:
         return task.startswith("contT_")
 
-    def fit_onefold(self, X, T, Y, m_model, e_model, seed: int):
+    def fit_onefold(self, X, T, Y, m_model, e_model, seed: int, fit_nuisance: bool = True):
         """
-        Fit nuisance on full train and train residual net with early stopping on internal val split.
-        Reference implementation: keep the public training path simple and robust.
+        Train the residual net with early stopping on an internal validation split.
+        If fit_nuisance is False, the supplied nuisance models are treated as
+        pre-fitted models and are only used to construct residuals.
         """
         import numpy as np
         from sklearn.model_selection import train_test_split
@@ -127,22 +128,26 @@ class ORCA:
         # fit nuisances
         if is_contT:
             # e(X): regression -> T
-            e_model.fit(X, T)
+            if fit_nuisance:
+                e_model.fit(X, T)
             e_hat = e_model.predict(X).astype(np.float32)
         else:
             # e(X): classification -> P(T=1|X)
-            e_model.fit(X, T.astype(int))
+            if fit_nuisance:
+                e_model.fit(X, T.astype(int))
             e_hat = e_model.predict_proba(X)[:, 1].astype(np.float32)
             e_hat = np.clip(e_hat, 1e-6, 1 - 1e-6)
 
         if not is_binY:
             # m(X): regression -> Y
-            m_model.fit(X, Y)
+            if fit_nuisance:
+                m_model.fit(X, Y)
             m_hat = m_model.predict(X).astype(np.float32)
             base_logit = None
         else:
             # m(X): classification -> P(Y=1|X) ; base_logit = logit(p)
-            m_model.fit(X, Y.astype(int))
+            if fit_nuisance:
+                m_model.fit(X, Y.astype(int))
             p_hat = m_model.predict_proba(X)[:, 1].astype(np.float32)
             p_hat = np.clip(p_hat, 1e-6, 1 - 1e-6)
             base_logit = logit_np(p_hat)

@@ -27,7 +27,7 @@ class ORCAConfig:
     # nuisance
     nuisance: str = "rf"     # rf / ridge / gbdt / mlp
 
-    # cross-fitting (optional)
+    # cross-fitting (experimental)
     crossfit_folds: int = 1  # 1 means no cross-fitting; >1 means K-fold cross-fitting
 
     # contT eval grid

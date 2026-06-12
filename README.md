@@ -19,7 +19,7 @@ obtained through additive reconstruction.
   - `binT_binY`: binary treatment, binary outcome
 - Nuisance models: ridge, random forest, gradient boosting, and MLP
 - Treatment representations: direct scalar input, Fourier features, and MLP embeddings
-- Optional cross-fitting
+- Experimental K-fold cross-fitting support
 - Command-line runner for NPZ or CSV datasets
 - Research scripts for reproducing paper experiments
 
