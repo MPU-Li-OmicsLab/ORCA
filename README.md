@@ -26,7 +26,7 @@ obtained through additive reconstruction.
 ## Repository Layout
 
 ```text
-ORCA-Neurocomputing/
+ORCA/
 |-- orca/                  # Clean reusable ORCA package
 |   |-- config.py
 |   |-- data.py
@@ -38,6 +38,10 @@ ORCA-Neurocomputing/
 |-- scripts/
 |   `-- run_orca.py         # Simple CLI entry point
 |-- experiments/            # Paper reproduction / research scripts
+|   |-- omics_drug_response.py
+|   |-- build_morgan_fingerprint_dataset.py
+|   |-- run_final_orca_family.py
+|   `-- make_biological_case_study.py
 |-- docs/
 |   `-- USAGE.md
 |-- pyproject.toml
@@ -47,8 +51,8 @@ ORCA-Neurocomputing/
 ## Installation
 
 ```bash
-git clone https://github.com/MPU-Li-OmicsLab/ORCA-Neurocomputing.git
-cd ORCA-Neurocomputing
+git clone https://github.com/MPU-Li-OmicsLab/ORCA.git
+cd ORCA
 python -m venv .venv
 
 # Windows
@@ -93,6 +97,10 @@ Outputs are saved to `out_dir`, including `metrics.json` and prediction arrays.
 The `experiments/` folder contains the larger research scripts used for
 benchmark and ablation studies:
 
+- `omics_drug_response.py`
+- `build_morgan_fingerprint_dataset.py`
+- `run_final_orca_family.py`
+- `make_biological_case_study.py`
 - `ihdp_orca_ablation_all4.py`
 - `news_orca_ablation_all4.py`
 - `news_baselines_all4.py`
@@ -102,6 +110,48 @@ benchmark and ablation studies:
 These scripts are intended for reproducibility and may contain dataset-specific
 paths or assumptions. The `orca/` package is the cleaner reusable implementation
 for public use.
+
+### DepMap/GDSC2 Pharmacogenomic Benchmark
+
+The Bioinformatics submission uses DepMap 26Q1 expression profiles, GDSC2 AUC
+drug sensitivity measurements, and Morgan-fingerprint compound descriptors. The
+final benchmark compares basic ORCA, two-tower ORCA, ORCA-Ensemble, and standard
+linear/tree/neural baselines under held-out cell-line splits.
+
+Install the additional experiment requirements:
+
+```bash
+pip install -r requirements-omics-drug-response.txt
+```
+
+Prepare Morgan-fingerprint descriptors from a SMILES-based prepared dataset:
+
+```bash
+python experiments/build_morgan_fingerprint_dataset.py \
+  --omics_csv data/prepared_gdsc_smiles/omics.csv \
+  --response_csv data/prepared_gdsc_smiles/response.csv \
+  --out_dir data/prepared_gdsc_morgan
+```
+
+Run the final ORCA-family benchmark:
+
+```bash
+python experiments/run_final_orca_family.py \
+  --omics_csv data/prepared_gdsc_morgan/omics.csv \
+  --response_csv data/prepared_gdsc_morgan/response.csv \
+  --drug_descriptor_csv data/prepared_gdsc_morgan/drug_descriptors.csv \
+  --out_dir runs/gdsc_morgan_final_orca_family
+```
+
+Generate the cell-line-level biological case study:
+
+```bash
+python experiments/make_biological_case_study.py \
+  --predictions_glob "runs/gdsc_morgan_final_orca_family/orca_ensemble_split_*/predictions_test_orca_ensemble.csv" \
+  --prediction_col y_pred_orca_ensemble \
+  --drug_metadata_csv raw/PortalCompounds.csv \
+  --out_dir runs/gdsc_morgan_final_orca_family/case_study_all_splits
+```
 
 ## Documentation
 

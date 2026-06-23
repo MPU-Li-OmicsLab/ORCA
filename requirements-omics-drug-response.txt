@@ -1,0 +1,11 @@
+numpy
+pandas
+scipy
+scikit-learn
+torch
+lightgbm
+rdkit
+matplotlib
+
+# Optional, only if using the --tdc_dataset bootstrap path.
+PyTDC
