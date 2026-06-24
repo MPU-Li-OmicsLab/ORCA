@@ -129,12 +129,14 @@ class Config:
     patience: int
     device: str
     run_sklearn_baselines: bool
+    run_two_tower_mlp_baseline: bool
     max_rows: Optional[int]
     disable_residual_t: bool
     split_seed: Optional[int]
     e_alpha: float
     residual_t_scale: float
     orca_arch: str
+    only_two_tower_mlp: bool
 
 
 @dataclass
@@ -423,6 +425,76 @@ class TwoTowerResidualNet(nn.Module):
         return self.head(fused).squeeze(-1)
 
 
+def train_torch_regressor(
+    model: nn.Module,
+    z_train: np.ndarray,
+    y_train: np.ndarray,
+    z_val: np.ndarray,
+    y_val: np.ndarray,
+    z_test: np.ndarray,
+    args: Config,
+    info_prefix: str,
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    """Train a Torch regressor with early stopping and return scaled predictions."""
+
+    device = torch.device(args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"))
+    model = model.to(device)
+    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    loss_fn = nn.MSELoss()
+    rng = np.random.default_rng(args.seed)
+
+    z_train_t = torch.from_numpy(z_train.astype(np.float32)).to(device)
+    y_train_t = torch.from_numpy(y_train.astype(np.float32)).to(device)
+    z_val_t = torch.from_numpy(z_val.astype(np.float32)).to(device)
+    y_val_t = torch.from_numpy(y_val.astype(np.float32)).to(device)
+
+    best_state = None
+    best_val = float("inf")
+    stale = 0
+    history: Dict[str, float] = {}
+    start_time = time.time()
+
+    for epoch in range(1, args.epochs + 1):
+        model.train()
+        train_losses = []
+        for idx in batches(len(z_train), args.batch_size, shuffle=True, rng=rng):
+            opt.zero_grad(set_to_none=True)
+            pred = model(z_train_t[idx])
+            loss = loss_fn(pred, y_train_t[idx])
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+            opt.step()
+            train_losses.append(float(loss.detach().cpu()))
+
+        model.eval()
+        with torch.no_grad():
+            val_loss = float(loss_fn(model(z_val_t), y_val_t).detach().cpu())
+        if val_loss < best_val - 1e-6:
+            best_val = val_loss
+            stale = 0
+            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        else:
+            stale += 1
+
+        history = {
+            f"{info_prefix}_best_val_mse": best_val,
+            f"{info_prefix}_last_train_mse": float(np.mean(train_losses)),
+            f"{info_prefix}_epochs_ran": float(epoch),
+        }
+        if stale >= args.patience:
+            break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+
+    model.eval()
+    with torch.no_grad():
+        pred = model(torch.from_numpy(z_test.astype(np.float32)).to(device)).detach().cpu().numpy()
+    history[f"{info_prefix}_training_seconds"] = time.time() - start_time
+    history[f"{info_prefix}_device"] = 1.0 if device.type == "cuda" else 0.0
+    return pred.astype(np.float32), history
+
+
 def batches(n: int, batch_size: int, shuffle: bool, rng: np.random.Generator):
     idx = np.arange(n)
     if shuffle:
@@ -603,6 +675,48 @@ def fit_sklearn_baselines(
     return preds
 
 
+def fit_two_tower_mlp_baseline(
+    x_train: np.ndarray,
+    t_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    t_val: np.ndarray,
+    y_val: np.ndarray,
+    x_test: np.ndarray,
+    t_test: np.ndarray,
+    args: Config,
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    """Late-fusion pharmacogenomic two-tower MLP without ORCA residualization.
+
+    This baseline controls for the benefit of separate omics and drug towers.
+    Unlike two-tower ORCA, it does not estimate nuisance functions, does not use
+    residualized drug descriptors, and does not perform additive reconstruction.
+    """
+
+    z_train = np.concatenate([x_train, t_train], axis=1).astype(np.float32)
+    z_val = np.concatenate([x_val, t_val], axis=1).astype(np.float32)
+    z_test = np.concatenate([x_test, t_test], axis=1).astype(np.float32)
+    model = TwoTowerResidualNet(
+        x_dim=x_train.shape[1],
+        t_dim=t_train.shape[1],
+        hidden_dim=args.hidden_dim,
+        depth=args.depth,
+        dropout=args.dropout,
+        use_residual_t=False,
+    )
+    pred, info = train_torch_regressor(
+        model=model,
+        z_train=z_train,
+        y_train=y_train,
+        z_val=z_val,
+        y_val=y_val,
+        z_test=z_test,
+        args=args,
+        info_prefix="two_tower_mlp",
+    )
+    return pred, info
+
+
 def write_json(path: Path, obj) -> None:
     path.write_text(json.dumps(obj, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -638,25 +752,41 @@ def run(args: Config) -> None:
     predictions: Dict[str, np.ndarray] = {}
     fit_info: Dict[str, float] = {}
 
-    y_orca_scaled, orca_info = fit_orca(
-        x_train,
-        t_train,
-        y_train,
-        x_val,
-        t_val,
-        y_val,
-        x_test,
-        t_test,
-        args,
-    )
-    orca_name = "orca_no_residual_t" if args.disable_residual_t else "orca"
-    predictions[orca_name] = prep.inverse_y(y_orca_scaled)
-    fit_info.update(orca_info)
+    if not args.only_two_tower_mlp:
+        y_orca_scaled, orca_info = fit_orca(
+            x_train,
+            t_train,
+            y_train,
+            x_val,
+            t_val,
+            y_val,
+            x_test,
+            t_test,
+            args,
+        )
+        orca_name = "orca_no_residual_t" if args.disable_residual_t else "orca"
+        predictions[orca_name] = prep.inverse_y(y_orca_scaled)
+        fit_info.update(orca_info)
 
-    if args.run_sklearn_baselines:
+    if args.run_sklearn_baselines and not args.only_two_tower_mlp:
         baseline_scaled = fit_sklearn_baselines(x_train, t_train, y_train, x_test, t_test, args.seed)
         for name, pred_scaled in baseline_scaled.items():
             predictions[name] = prep.inverse_y(pred_scaled)
+
+    if args.only_two_tower_mlp or (args.run_sklearn_baselines and args.run_two_tower_mlp_baseline):
+        two_tower_mlp_scaled, two_tower_mlp_info = fit_two_tower_mlp_baseline(
+            x_train,
+            t_train,
+            y_train,
+            x_val,
+            t_val,
+            y_val,
+            x_test,
+            t_test,
+            args,
+        )
+        predictions["two_tower_mlp"] = prep.inverse_y(two_tower_mlp_scaled)
+        fit_info.update(two_tower_mlp_info)
 
     metrics = {name: regression_metrics(y_true, pred) for name, pred in predictions.items()}
 
@@ -728,6 +858,8 @@ def parse_args() -> Config:
     parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--no_sklearn_baselines", action="store_true")
+    parser.add_argument("--no_two_tower_mlp_baseline", action="store_true")
+    parser.add_argument("--only_two_tower_mlp", action="store_true")
     parser.add_argument("--max_rows", type=int, default=None)
     parser.add_argument("--disable_residual_t", action="store_true")
     parser.add_argument("--split_seed", type=int, default=None)
@@ -763,12 +895,14 @@ def parse_args() -> Config:
         patience=ns.patience,
         device=ns.device,
         run_sklearn_baselines=not ns.no_sklearn_baselines,
+        run_two_tower_mlp_baseline=not ns.no_two_tower_mlp_baseline,
         max_rows=ns.max_rows,
         disable_residual_t=ns.disable_residual_t,
         split_seed=ns.split_seed,
         e_alpha=ns.e_alpha,
         residual_t_scale=ns.residual_t_scale,
         orca_arch=ns.orca_arch,
+        only_two_tower_mlp=ns.only_two_tower_mlp,
     )
 
 

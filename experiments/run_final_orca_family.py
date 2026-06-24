@@ -1,7 +1,8 @@
 """Run the final DepMap/GDSC2 ORCA-family benchmark.
 
 This runner reproduces the Bioinformatics submission benchmark:
-  - basic ORCA plus sklearn baselines across split seeds 1, 2, 3
+  - basic ORCA plus shared-input baselines across split seeds 1, 2, 3
+  - late-fusion two-tower MLP baseline across split seeds 1, 2, 3
   - two-tower ORCA across split seeds 1, 2, 3
   - ORCA-Ensemble with five independently initialized two-tower models per split
 
@@ -102,6 +103,13 @@ def summarize(root: Path) -> pd.DataFrame:
             if "orca" in data:
                 add("two_tower_orca", data["orca"])
 
+    for seed_dir in sorted((root / "two_tower_mlp").glob("seed_*")):
+        path = seed_dir / "metrics.json"
+        if path.exists():
+            data = json.loads(path.read_text())
+            if "two_tower_mlp" in data:
+                add("two_tower_mlp", data["two_tower_mlp"])
+
     for ens_dir in sorted(root.glob("orca_ensemble_split_*")):
         path = ens_dir / "metrics_orca_ensemble.json"
         if path.exists():
@@ -109,7 +117,17 @@ def summarize(root: Path) -> pd.DataFrame:
             if "orca_ensemble" in data:
                 add("orca_ensemble", data["orca_ensemble"])
 
-    order = ["elastic_net", "ridge", "hist_gradient_boosting", "lightgbm", "mlp", "orca", "two_tower_orca", "orca_ensemble"]
+    order = [
+        "elastic_net",
+        "ridge",
+        "hist_gradient_boosting",
+        "lightgbm",
+        "mlp",
+        "two_tower_mlp",
+        "orca",
+        "two_tower_orca",
+        "orca_ensemble",
+    ]
     rows = []
     for method in order:
         if method not in methods:
@@ -171,8 +189,12 @@ def main() -> None:
 
     for split_seed in args.split_seeds:
         run_cmd(
-            [sys.executable, str(BENCHMARK_SCRIPT), *common, "--seed", str(split_seed), "--split_seed", str(split_seed), "--orca_arch", "plain", "--out_dir", str(out_root / "orca" / f"seed_{split_seed}")],
+            [sys.executable, str(BENCHMARK_SCRIPT), *common, "--seed", str(split_seed), "--split_seed", str(split_seed), "--orca_arch", "plain", "--no_two_tower_mlp_baseline", "--out_dir", str(out_root / "orca" / f"seed_{split_seed}")],
             out_root / "orca" / f"seed_{split_seed}" / "metrics.json",
+        )
+        run_cmd(
+            [sys.executable, str(BENCHMARK_SCRIPT), *common, "--seed", str(split_seed), "--split_seed", str(split_seed), "--only_two_tower_mlp", "--no_sklearn_baselines", "--out_dir", str(out_root / "two_tower_mlp" / f"seed_{split_seed}")],
+            out_root / "two_tower_mlp" / f"seed_{split_seed}" / "metrics.json",
         )
         run_cmd(
             [sys.executable, str(BENCHMARK_SCRIPT), *common, "--seed", str(split_seed), "--split_seed", str(split_seed), "--orca_arch", "twotower", "--no_sklearn_baselines", "--out_dir", str(out_root / "two_tower_orca" / f"seed_{split_seed}")],

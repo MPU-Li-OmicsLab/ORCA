@@ -77,6 +77,16 @@ python experiments/build_morgan_fingerprint_dataset.py \
 
 ## 4. Run Final ORCA-Family Benchmark
 
+This runner reports ridge, elastic net, histogram gradient boosting, LightGBM,
+direct MLP, late-fusion two-tower MLP, basic ORCA, two-tower ORCA, and
+ORCA-Ensemble. The two-tower MLP baseline controls for the benefit of separate
+omics and drug encoders without ORCA nuisance residualization or additive
+reconstruction.
+
+If earlier ORCA-family outputs already exist in the same `out_dir`, the runner
+skips completed runs and adds missing outputs such as the late-fusion two-tower
+MLP baseline before regenerating `final_summary.csv`.
+
 ```bash
 python experiments/run_final_orca_family.py \
   --omics_csv data/prepared_gdsc_morgan/omics.csv \

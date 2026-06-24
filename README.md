@@ -115,8 +115,11 @@ for public use.
 
 The Bioinformatics submission uses DepMap 26Q1 expression profiles, GDSC2 AUC
 drug sensitivity measurements, and Morgan-fingerprint compound descriptors. The
-final benchmark compares basic ORCA, two-tower ORCA, ORCA-Ensemble, and standard
-linear/tree/neural baselines under held-out cell-line splits.
+final benchmark compares standard linear/tree/neural baselines, a late-fusion
+two-tower MLP pharmacogenomic baseline, basic ORCA, two-tower ORCA, and
+ORCA-Ensemble under held-out cell-line splits. The two-tower MLP baseline uses
+separate omics and drug towers but does not use nuisance residualization or
+additive ORCA reconstruction.
 
 Install the additional experiment requirements:
 
